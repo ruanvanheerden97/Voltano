@@ -1,0 +1,7 @@
+# Python
+__pycache__/
+*.py[cod]
+# Service account key
+service_account.json
+# Excel files
+*.xlsx
