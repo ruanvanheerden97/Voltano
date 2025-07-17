@@ -252,9 +252,13 @@ def main():
     else:
         with st.sidebar:
             draw_logo_center(300)
+            st.markdown("<div style='text-align:center; margin-bottom:10px;'><h3 style='font-size:16px;'>Menu</h3></div>", unsafe_allow_html=True)
+            # Navigation buttons
             opts = ['Home', 'Kilometer Logger', 'Incident Reports', 'Risk Assessments', 'Company Docs']
-            choice = st.radio("Navigate", opts, index=opts.index(st.session_state.page))
-            st.session_state.page = choice
+            for key in opts:
+                if st.button(key, key=f"side_{key}", on_click=navigate, args=(key,)):
+                    pass
+        # Render selected page
         if st.session_state.page == 'Home':
             home_page()
         elif st.session_state.page == 'Kilometer Logger':
