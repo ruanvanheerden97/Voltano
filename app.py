@@ -20,8 +20,24 @@ COLUMNS = ["Date","Start_km","End_km","Distance_km","From","To","Reason","User"]
 # --- AUTH HELPERS ---
 @st.cache_resource
 def get_gs_client():
+    """
+    Authenticate to Google Sheets using a service account.
+    Uses the JSON in Streamlit secrets 'GOOGLE_SERVICE_ACCOUNT_JSON' or falls back to a local file.
+    """
+    import json, tempfile
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name(GS_CRED_JSON, scope)
+    # Load credentials from secrets if available
+    if "GOOGLE_SERVICE_ACCOUNT_JSON" in st.secrets:
+        creds_json = st.secrets["GOOGLE_SERVICE_ACCOUNT_JSON"]
+        creds_dict = json.loads(creds_json)
+        # write to temp file
+        tf = tempfile.NamedTemporaryFile(mode="w+", delete=False)
+        json.dump(creds_dict, tf)
+        tf.flush()
+        key_path = tf.name
+    else:
+        key_path = GS_CRED_JSON
+    creds = ServiceAccountCredentials.from_json_keyfile_name(key_path, scope)
     return gspread.authorize(creds)
 
 @st.cache_data
@@ -33,7 +49,7 @@ def load_users():
 
 def verify_login(username, password):
     users = load_users()
-    row = users[users['Username']==username]
+    row = users[users['Username'] == username]
     if not row.empty and str(row.iloc[0]['Password']).strip() == str(password).strip():
         client = get_gs_client()
         spreadsheet = client.open(GS_SPREADSHEET_NAME)
@@ -53,7 +69,7 @@ if 'page' not in st.session_state:
     st.session_state.page = 'Home'
 
 # --- COMMON FUNCTIONS ---
-def draw_logo_center(width=400):
+def draw_logo_center(width=350):
     """
     Display the company logo centered using three columns.
     """
@@ -64,8 +80,11 @@ def draw_logo_center(width=400):
 
 # --- PAGES ---
 def home_page():
-    draw_logo_center(400)
-    st.markdown(f"<h2 style='text-align:center; font-size:20px;'>Welcome, {st.session_state.nickname}</h2>", unsafe_allow_html=True)
+    draw_logo_center()
+    st.markdown(
+        f"<h2 style='text-align:center; font-size:18px;'>Welcome, {st.session_state.nickname}</h2>",
+        unsafe_allow_html=True
+    )
     st.write("")
     btns = [
         ("📊 Kilometer Logger", 'Kilometer Logger'),
@@ -80,11 +99,12 @@ def home_page():
                 st.session_state.page = page_key
                 return
 
-# Kilometer Logger page
 def kilometer_logger():
-    draw_logo_center(300)
-    st.markdown(f"<h3 style='text-align:center; font-size:16px;'>Kilometer Logger for {st.session_state.nickname}</h3>", unsafe_allow_html=True)
-
+    draw_logo_center()
+    st.markdown(
+        f"<h3 style='text-align:center; font-size:14px;'>Kilometer Logger for {st.session_state.nickname}</h3>",
+        unsafe_allow_html=True
+    )
     client = get_gs_client()
     spreadsheet = client.open(GS_SPREADSHEET_NAME)
     km_sheet = spreadsheet.worksheet(GS_KM_WORKSHEET)
@@ -94,14 +114,10 @@ def kilometer_logger():
         if col not in df.columns:
             df[col] = None
     df = df[COLUMNS]
-    df['Start_km'] = pd.to_numeric(df['Start_km'], errors='coerce')
-    df['End_km'] = pd.to_numeric(df['End_km'], errors='coerce')
-    df['Distance_km'] = pd.to_numeric(df['Distance_km'], errors='coerce')
+    df[['Start_km','End_km','Distance_km']] = df[['Start_km','End_km','Distance_km']].apply(pd.to_numeric, errors='coerce')
     df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
     user = st.session_state.username
     df_user = df[df['User'] == user]
-
-    # Pending half entry
     pending = df_user[df_user['End_km'].isna()]
     if not pending.empty:
         st.warning("⚠️ You have an unfinished entry. Complete it before adding new ones.")
@@ -125,8 +141,6 @@ def kilometer_logger():
                 km_sheet.update_cell(row_num, headers.index('Reason')+1, new_reason)
                 st.success(f"Completed {distance:.1f} km on {row['Date'].date()}")
         return
-
-    # New entry form
     st.subheader("➕ New Entry")
     with st.form("new_km", clear_on_submit=True):
         d = st.date_input("Date", value=date.today())
@@ -138,25 +152,18 @@ def kilometer_logger():
         e_km = None if half else st.number_input("Closing km", min_value=s_km, step=1.0, format="%.1f")
         submitted = st.form_submit_button("Save Entry")
     if submitted:
-        if not f_loc.strip():
-            st.error("Enter 'From'.")
-        elif not half and e_km is None:
-            st.error("Enter closing km or check half entry.")
-        elif not half and e_km < s_km:
-            st.error("Closing km must be ≥ opening km.")
+        if not f_loc.strip(): st.error("Enter 'From'.")
+        elif not half and e_km is None: st.error("Enter closing km or check half entry.")
+        elif not half and e_km < s_km: st.error("Closing km must be ≥ opening km.")
         else:
             dist = e_km - s_km if e_km is not None else ''
             new = [d.strftime('%Y-%m-%d'), float(s_km), float(e_km) if e_km is not None else '', float(dist) if dist!='' else '', f_loc, t_loc, note, user]
             km_sheet.append_row(new)
             st.success("Entry saved.")
             return
-
-    # Display log
     st.subheader("🗒️ Your Log")
     st.dataframe(df_user.sort_values('Date').reset_index(drop=True))
-
-    # Date-range & download
-    st.subheader("📥 Download Report by Date Range")
+    st.subheader("📥 Download by Date Range")
     dates = df_user['Date'].dt.date
     min_date = dates.min() if not dates.empty else date.today()
     max_date = dates.max() if not dates.empty else date.today()
@@ -178,20 +185,17 @@ def kilometer_logger():
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-# Incident Reports stub
 def incident_reports():
-    draw_logo_center(300)
-    st.markdown(f"<h3 style='text-align:center; font-size:16px;'>Incident Reports</h3>", unsafe_allow_html=True)
+    draw_logo_center()
+    st.markdown(f"<h3 style='text-align:center; font-size:14px;'>Incident Reports</h3>", unsafe_allow_html=True)
 
-# Risk Assessments stub
 def risk_assessments():
-    draw_logo_center(300)
-    st.markdown(f"<h3 style='text-align:center; font-size:16px;'>Risk Assessments</h3>", unsafe_allow_html=True)
+    draw_logo_center()
+    st.markdown(f"<h3 style='text-align:center; font-size:14px;'>Risk Assessments</h3>", unsafe_allow_html=True)
 
-# Company Docs page
 def company_docs():
-    draw_logo_center(300)
-    st.markdown(f"<h3 style='text-align:center; font-size:16px;'>Company Docs</h3>", unsafe_allow_html=True)
+    draw_logo_center()
+    st.markdown(f"<h3 style='text-align:center; font-size:14px;'>Company Docs</h3>", unsafe_allow_html=True)
     docs = {
         "Job Cards": "https://docs.google.com/forms/d/e/1FAIpQLSdYgwhqsrFNH3r3mohsokOLeYFd8ASNgFnxHdGLVP5llcFMhA/viewform?pli=1",
         "Meter Installations": "https://docs.google.com/forms/d/e/1FAIpQLScpU4mgRMCvnpa7yrfCZlTmH3dUEKLhdZz0KOFM8QOUwyLkvQ/viewform",
@@ -208,13 +212,12 @@ def company_docs():
             )
             st.markdown(html, unsafe_allow_html=True)
 
-# --- MAIN APP ---
 def main():
     if not st.session_state.logged_in:
         cols = st.columns([1,2,1])
         with cols[1]:
             draw_logo_center(400)
-            st.markdown("<h2 style='text-align:center; font-size:18px;'>Voltano Metering Login</h2>", unsafe_allow_html=True)
+            st.markdown("<h2 style='text-align:center; font-size:16px;'>Voltano Metering Login</h2>", unsafe_allow_html=True)
             users = load_users()
             nickname = st.selectbox("Select User", users['Nickname'])
             username = users.loc[users['Nickname']==nickname, 'Username'].iloc[0]
@@ -229,7 +232,7 @@ def main():
                     st.error("Invalid credentials")
     else:
         with st.sidebar:
-            draw_logo_center(200)
+            draw_logo_center(300)
             opts = ['Home', 'Kilometer Logger', 'Incident Reports', 'Risk Assessments', 'Company Docs']
             choice = st.radio("Navigate", opts, index=opts.index(st.session_state.page))
             st.session_state.page = choice
