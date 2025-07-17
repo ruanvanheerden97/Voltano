@@ -59,6 +59,18 @@ def verify_login(username, password):
         return True
     return False
 
+# --- NAVIGATION HELPERS ---
+
+def logout():
+    # Clear session on logout
+    st.session_state.logged_in = False
+    st.session_state.username = None
+    st.session_state.nickname = None
+    st.session_state.page = 'Home'
+
+@st.cache_resource
+# NOTE: retain existing get_gs_client()
+# ... rest of auth helpers unchanged ...
 # --- NAVIGATION HELPER ---
 def navigate(page_key):
     st.session_state.page = page_key
@@ -253,11 +265,16 @@ def main():
         with st.sidebar:
             draw_logo_center(300)
             st.markdown("<div style='text-align:center; margin-bottom:10px;'><h3 style='font-size:16px;'>Menu</h3></div>", unsafe_allow_html=True)
-            # Navigation buttons
+            # Navigation buttons in centered column
             opts = ['Home', 'Kilometer Logger', 'Incident Reports', 'Risk Assessments', 'Company Docs']
             for key in opts:
-                if st.button(key, key=f"side_{key}", on_click=navigate, args=(key,)):
-                    pass
+                btn_cols = st.columns([1,4,1])
+                with btn_cols[1]:
+                    st.button(
+                        key, key=f"side_{key}", on_click=navigate, args=(key,),
+                        help=f"Go to {key}",
+                    )
+                st.write("")  # spacing
         # Render selected page
         if st.session_state.page == 'Home':
             home_page()
