@@ -245,47 +245,57 @@ def company_docs():
 
 def main():
     if not st.session_state.logged_in:
-        cols = st.columns([1,2,1])
-        with cols[1]:
-            draw_logo_center(400)
-            st.markdown("<h2 style='text-align:center; font-size:16px;'>Voltano Metering Login</h2>", unsafe_allow_html=True)
-            users = load_users()
-            nickname = st.selectbox("Select User", users['Nickname'])
-            username = users.loc[users['Nickname']==nickname, 'Username'].iloc[0]
-            password = st.text_input("Password", type="password")
-            if st.button("Login"):
-                if verify_login(username, password):
-                    st.session_state.logged_in = True
-                    st.session_state.username = username
-                    st.session_state.nickname = nickname
-                    st.session_state.page = 'Home'
-                else:
-                    st.error("Invalid credentials")
-    else:
-        with st.sidebar:
-            draw_logo_center(300)
-            st.markdown("<div style='text-align:center; margin-bottom:10px;'><h3 style='font-size:16px;'>Menu</h3></div>", unsafe_allow_html=True)
-            # Navigation buttons in centered column
-            opts = ['Home', 'Kilometer Logger', 'Incident Reports', 'Risk Assessments', 'Company Docs']
-            for key in opts:
-                btn_cols = st.columns([1,4,1])
-                with btn_cols[1]:
-                    st.button(
-                        key, key=f"side_{key}", on_click=navigate, args=(key,),
-                        help=f"Go to {key}",
-                    )
-                st.write("")  # spacing
-        # Render selected page
-        if st.session_state.page == 'Home':
-            home_page()
-        elif st.session_state.page == 'Kilometer Logger':
-            kilometer_logger()
-        elif st.session_state.page == 'Incident Reports':
-            incident_reports()
-        elif st.session_state.page == 'Risk Assessments':
-            risk_assessments()
-        elif st.session_state.page == 'Company Docs':
-            company_docs()
+        # … your existing login UI …
+        return
+
+    # --- AUTHENTICATED LAYOUT ---
+    # draw a slim sidebar with the logo and our "radio button" menu
+    with st.sidebar:
+        st.image(LOGO_FILE, width=120)
+        st.markdown("---")
+        pages = [
+            "Home",
+            "Kilometer Logger",
+            "Incident Reports",
+            "Risk Assessments",
+            "Company Docs",
+        ]
+        # stateful selector: one click, immediate update
+        choice = st.radio(
+            "Menu",
+            pages,
+            index=pages.index(st.session_state.page),
+            key="nav_radio"
+        )
+        st.session_state.page = choice
+
+        st.markdown("---")
+        # your logout button (no experimental rerun needed here)
+        if 'confirm_logout' not in st.session_state:
+            if st.button("🔒 Logout"):
+                st.session_state.confirm_logout = True
+        else:
+            st.warning("Are you sure you want to log out?")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Yes"):
+                    logout()
+            with col2:
+                if st.button("No"):
+                    del st.session_state.confirm_logout
+
+    # --- PAGE RENDERING ---
+    if st.session_state.page == "Home":
+        home_page()
+    elif st.session_state.page == "Kilometer Logger":
+        kilometer_logger()
+    elif st.session_state.page == "Incident Reports":
+        incident_reports()
+    elif st.session_state.page == "Risk Assessments":
+        risk_assessments()
+    elif st.session_state.page == "Company Docs":
+        company_docs()
+
 
 if __name__ == '__main__':
     main()
