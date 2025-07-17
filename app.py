@@ -45,6 +45,20 @@ def load_users():
     users_sheet = spreadsheet.worksheet("Technicians")
     return pd.DataFrame(users_sheet.get_all_records())
 
+# --- AUTH HELPER: LOGIN VERIFICATION ---
+def verify_login(username, password):
+    users = load_users()
+    row = users[users['Username'] == username]
+    if not row.empty and str(row.iloc[0]['Password']).strip() == str(password).strip():
+        client = get_gs_client()
+        spreadsheet = client.open(GS_SPREADSHEET_NAME)
+        users_sheet = spreadsheet.worksheet("Technicians")
+        idx = row.index[0] + 2
+        col = users.columns.get_loc('LastLogin') + 1
+        users_sheet.update_cell(idx, col, datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        return True
+    return False
+
 # --- NAVIGATION HELPER ---
 def navigate(page_key):
     st.session_state.page = page_key
