@@ -8,7 +8,12 @@ from oauth2client.service_account import ServiceAccountCredentials
 import io
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="Voltano Field App", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(
+    page_title="Voltano Metering",  # name shown in browser tab and mobile shortcut
+    page_icon="Voltano Metering Logo PNG.png",  # path to your logo file (set as favicon)
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
 # --- CONFIG ---
 LOGO_FILE = "Voltano Metering Logo PNG.png"
