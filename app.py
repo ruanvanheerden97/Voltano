@@ -123,6 +123,8 @@ def kilometer_logger():
     df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
     user = st.session_state.username
     df_user = df[df['User'] == user]
+    # Prefill starting km as last completed end_km
+    last_ended = df_user['End_km'].dropna().max() if not df_user['End_km'].dropna().empty else 0.0
     pending = df_user[df_user['End_km'].isna()]
     if not pending.empty:
         st.warning("⚠️ You have an unfinished entry. Complete it before adding new ones.")
