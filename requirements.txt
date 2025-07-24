@@ -4,3 +4,7 @@ gspread
 oauth2client
 openpyxl
 pillow
+paramiko
+networkx
+matplotlib
+
