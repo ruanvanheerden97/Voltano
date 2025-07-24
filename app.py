@@ -10,6 +10,7 @@ import paramiko
 import networkx as nx
 import matplotlib.pyplot as plt
 from io import StringIO
+import pygraphviz
 
 # --- SESSION STATE INITIALIZATION ---
 if 'logged_in' not in st.session_state:
@@ -322,6 +323,12 @@ def site_hierarchy_page():
     total_expected = len(sub)
     total_fetched  = df_latest["Serial"].nunique()
     st.info(f"Imported {total_fetched}/{total_expected} meters")
+
+    try:
+        pos = nx.nx_agraph.graphviz_layout(G, prog="dot")
+    except ImportError:
+        st.error("❌ pygraphviz is not installed. Please install it to use this layout.")
+        return
 
     G = nx.DiGraph()
     for _, r in sub.iterrows():

@@ -7,4 +7,5 @@ pillow
 paramiko
 networkx
 matplotlib
+pygraphviz
 
