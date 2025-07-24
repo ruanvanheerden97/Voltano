@@ -306,6 +306,12 @@ def site_hierarchy_page():
     client = get_gs_client()
     sheet  = client.open(GS_SPREADSHEET).worksheet(GS_HIST_SHEET)
     hist   = pd.DataFrame(sheet.get_all_records())
+    required_cols = ["timestamp", "Site", "Serial", "Value"]
+    missing_cols = [col for col in required_cols if col not in hist.columns]
+    if missing_cols:
+        st.error(f"❌ Missing columns in HistoricalReadings sheet: {missing_cols}")
+        return
+
     hist["timestamp"] = pd.to_datetime(hist["timestamp"])
     df_latest = (hist[hist["Site"]==site]
                  .sort_values("timestamp")
